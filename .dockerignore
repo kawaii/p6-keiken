@@ -1,5 +1,6 @@
 Dockerfile
 LICENCE
+schema.sql
 .dockerignore
 .gitattributes
 .gitignore
