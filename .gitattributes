@@ -2,3 +2,4 @@
 *.t linguist-language=perl6
 .gitattributes export-ignore
 .gitignore export-ignore
+schema.sql export-ignore
