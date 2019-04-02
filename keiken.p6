@@ -24,23 +24,21 @@ sub MAIN($discord-token) {
             my $channel = await $message.channel;
             my $guild = await $channel.guild;
 
-            my $owner = $guild.owner-id;
-            dd $owner;
-
             my $c = $message.content;
 
             my $redis-key = $channel.guild-id ~ "-" ~ $message.author.id;
 
             if $c ~~ s/ ^ "!" // {
-                handle-command($message, $c);
+                handle-command($c, $message);
                 next;
             }
 
             unless $message.author.is-bot or $redis.exists($redis-key) {
-                    experience-cooldown($channel, $message);
-                    grant-experience($channel, $message);
-                    grant-level-roles($guild, $message);
+                experience-cooldown($channel, $message);
+                grant-experience($channel, $message);
+                grant-level-roles($guild, $message);
             }
         }
+
     }
 }

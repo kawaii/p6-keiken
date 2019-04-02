@@ -1,29 +1,46 @@
 unit module Keiken::Controller::Commands;
 
 use Keiken::Controller::Experience;
+use Keiken::Command;
 
 use Keiken::Storage::Database;
 use Keiken::Storage::Cache;
 
 use JSON::Fast;
 
-my %COMMANDS =
-    rank => &rank,
-    add-level => &add-level,
-    rm-level => &rm-level,
-    list-levels => &list-levels,
-;
 
-sub handle-command($message, $trimmed-message) is export {
-    $trimmed-message ~~ /(\S+) [ \s+ (.*) ]?/;
+my $handler = Keiken::Command.new(
+    commands => {
+        level => &level
+    }
+);
 
-    my $command = $/[0];
-    if %COMMANDS{$command} -> $sub {
-        $sub($/[1] // '', $message)
+sub handle-command($trimmed-message, $message-obj) is export {
+    $handler.handle-command($trimmed-message, $message-obj);
+
+    CATCH {
+        when X::Keiken::Command::InvalidCommand {
+            $message-obj.channel.result.send-message(.message)
+        }
     }
 }
 
-sub rank($args-str is copy, $message) {
+sub level($args-str is copy, $message) {
+    state $handler = Keiken::Command.new(
+        commands => {
+            add => &add-level,
+            rm => &rm-level,
+            list => &list-levels,
+            show => &show-level
+        }
+    );
+
+    $message.channel.result.send('**Usage**: !level COMMAND [args]') unless $args-str;
+
+    $handler.handle-command($args-str, $message);
+}
+
+sub show-level($args-str is copy, $message) {
     my $channel = await ($message.channel);
 
     my $author-id;
