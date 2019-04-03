@@ -1,46 +1,29 @@
 unit module Keiken::Controller::Commands;
 
 use Keiken::Controller::Experience;
-use Keiken::Command;
 
 use Keiken::Storage::Database;
 use Keiken::Storage::Cache;
 
 use JSON::Fast;
+use Command::Despatch;
 
-
-my $handler = Keiken::Command.new(
-    commands => {
-        level => &level
-    }
+my $commands = Command::Despatch.new(
+        command-table => {
+            level => {
+                list => &list-levels,
+                add => &add-level,
+                rm => &rm-level,
+            }
+        }
 );
 
-sub handle-command($trimmed-message, $message-obj) is export {
-    $handler.handle-command($trimmed-message, $message-obj);
-
-    CATCH {
-        when X::Keiken::Command::InvalidCommand {
-            $message-obj.channel.result.send-message(.message)
-        }
-    }
+sub handle-command($str, $payload) is export {
+    return $commands.run($str, payload => $payload);
 }
 
-sub level($args-str is copy, $message) {
-    state $handler = Keiken::Command.new(
-        commands => {
-            add => &add-level,
-            rm => &rm-level,
-            list => &list-levels,
-            show => &show-level
-        }
-    );
-
-    $message.channel.result.send('**Usage**: !level COMMAND [args]') unless $args-str;
-
-    $handler.handle-command($args-str, $message);
-}
-
-sub show-level($args-str is copy, $message) {
+sub show-level($args-str is copy) {
+    my $message = self.payload;
     my $channel = await ($message.channel);
 
     my $author-id;
@@ -73,14 +56,11 @@ sub show-level($args-str is copy, $message) {
     $channel.send-message(sprintf $response-str, @response-fmt-args);
 }
 
-sub add-level($args-str is copy, $message) {
-    my $channel = await ($message.channel);
-
-    my ($level, $role-id) = ~<<($args-str ~~ / (\d+) \s+ (\d+) /);
+sub add-level($args) {
+    my ($level, $role-id) = ~<<($args ~~ / (\d+) \s+ (\d+) /);
 
     unless $level and $role-id {
-        $channel.send-message("**Usage**: `!add-level LEVEL ROLE-ID`");
-        return;
+        return "**Usage**: `!add-level LEVEL ROLE-ID`";
     }
 
     my %level-role = $level => $role-id;
@@ -91,17 +71,14 @@ sub add-level($args-str is copy, $message) {
         STATEMENT
 
     $new-level-role.execute($level-role);
-    $channel.send-message("Level $level is now bound to <@&{$role-id}>.");
+    return "Level $level is now bound to <@&{$role-id}>.";
 }
 
-sub rm-level($args-str is copy, $message) {
-    my $channel = await ($message.channel);
-
+sub rm-level($args-str is copy) {
     my ($level) = ~<<($args-str ~~ / (\d+)/);
 
     unless $level {
-        $channel.send-message("**Usage**: `!rm-level LEVEL`");
-        return;
+        return "**Usage**: `!rm-level LEVEL`";
     }
 
     my $role-removal = dbh.prepare(q:to/STATEMENT/);
@@ -109,10 +86,10 @@ sub rm-level($args-str is copy, $message) {
         STATEMENT
 
     $role-removal.execute($level);
-    $channel.send-message("Level $level has been unbound.");
+    return "Level $level has been unbound.";
 }
 
-sub list-levels($args-str, $message) {
+sub list-levels($args-str) {
     my $channel = await ($message.channel);
 
     my $level-roles = dbh.prepare(q:to/STATEMENT/);
