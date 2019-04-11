@@ -18,13 +18,14 @@ my $commands = Command::Despatch.new(
         }
 );
 
-sub handle-command($str, $payload) is export {
-    return $commands.run($str, payload => $payload);
+sub handle-command($str, :$payload) is export {
+    return $commands.run($str, :$payload);
 }
 
-sub show-level($args-str is copy) {
-    my $message = self.payload;
+sub show-level($self) {
+    my $message = $self.payload;
     my $channel = await ($message.channel);
+    my $args-str = $self.args;
 
     my $author-id;
     my $response-str = '<@%d> %s %d experience points. %s are level %d.';
@@ -56,7 +57,8 @@ sub show-level($args-str is copy) {
     $channel.send-message(sprintf $response-str, @response-fmt-args);
 }
 
-sub add-level($args) {
+sub add-level($self) {
+    my $args = $self.args;
     my ($level, $role-id) = ~<<($args ~~ / (\d+) \s+ (\d+) /);
 
     unless $level and $role-id {
@@ -74,7 +76,8 @@ sub add-level($args) {
     return "Level $level is now bound to <@&{$role-id}>.";
 }
 
-sub rm-level($args-str is copy) {
+sub rm-level($self) {
+    my $args-str = $self.args;
     my ($level) = ~<<($args-str ~~ / (\d+)/);
 
     unless $level {
@@ -89,7 +92,10 @@ sub rm-level($args-str is copy) {
     return "Level $level has been unbound.";
 }
 
-sub list-levels($args-str) {
+sub list-levels($self) {
+    my $args-str = $self.args;
+    my $message = $self.payload;
+
     my $channel = await ($message.channel);
 
     my $level-roles = dbh.prepare(q:to/STATEMENT/);

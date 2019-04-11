@@ -29,7 +29,7 @@ sub MAIN($discord-token) {
             my $redis-key = $channel.guild-id ~ "-" ~ $message.author.id;
 
             if $c ~~ s/ ^ "!" // {
-                my $response = handle-command($c);
+                my $response = handle-command($c, payload => $message);
                 $message.channel.result.send($response) if $response;
                 next;
             }
